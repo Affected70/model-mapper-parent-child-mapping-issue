@@ -1,47 +1,73 @@
 package com.example.modelmapper;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
-import com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.PropertyMap;
 
 public class MapTest {
 
-  @Test
-  public void test() {
-    ModelMapper mapper = new ModelMapper();
+    @Test
+    public void testPassed_When_TypeMapsCreatedInOrderFromParentToChild() {
+        ModelMapper mapper = new ModelMapper();
 
-    mapper.createTypeMap(Foo.class, Foo.class).addMappings(new PropertyMap<Foo, Foo>() {
-      @Override
-      protected void configure() {
-        skip().setId(null);
-      }
-    });
-    mapper.createTypeMap(Bar.class, Bar.class).addMappings(new PropertyMap<Bar, Bar>() {
-      @Override
-      protected void configure() {
-        skip().setId(null);
-      }
-    });
+        mapper.createTypeMap(Parent.class, ParentDTO.class).addMappings(new PropertyMap<Parent, ParentDTO>() {
+            @Override
+            protected void configure() {
+                skip().setName(null);
+            }
+        });
 
-    Foo foo1 = Foo.builder()
-        .id("id-foo")
-        .bars(ImmutableList.of(Bar.builder().id("id-bar").name("bar").build()))
-        .build();
-    Foo foo2 = Foo.builder()
-        .id("id-boo")
-        .bars(ImmutableList.of(Bar.builder().id("id-zar").name("car").build()))
-        .build();
+        mapper.createTypeMap(Child.class, ChildDTO.class).addMappings(new PropertyMap<Child, ChildDTO>() {
+            @Override
+            protected void configure() {
+                skip().setAge(0);
+            }
+        });
 
-    mapper.map(foo1, foo2);
+        Child child = Child.builder()
+                .id("id-child")
+                .parent(Parent.builder().id("id-parent").build())
+                .build();
 
-    assertEquals("id-foo", foo1.getId());
-    assertEquals("id-boo", foo2.getId());
 
-    assertEquals("bar", foo2.getBars().get(0).getName());
-    assertEquals("id-zar", foo2.getBars().get(0).getId()); // java.lang.AssertionError: expected:<id-zar> but was:<null>
-  }
+        ChildDTO childDTO = mapper.map(child, ChildDTO.class);
+        mapper.validate();
 
+        assertEquals("id-child", childDTO.getId());
+    }
+
+    @Test
+    public void testFailed_When_TypeMapsCreatedInOrderFromChildToParent() {
+        ModelMapper mapper = new ModelMapper();
+
+        //First create mapping for Child element
+        mapper.createTypeMap(Child.class, ChildDTO.class).addMappings(new PropertyMap<Child, ChildDTO>() {
+            @Override
+            protected void configure() {
+                skip().setAge(0);
+            }
+        });
+
+        //Then create mapping for parent element
+        mapper.createTypeMap(Parent.class, ParentDTO.class).addMappings(new PropertyMap<Parent, ParentDTO>() {
+            @Override
+            protected void configure() {
+                skip().setName(null);
+            }
+        });
+
+        Child child = Child.builder()
+                .id("id-child")
+                .parent(Parent.builder().id("id-parent").build())
+                .build();
+
+
+        ChildDTO childDTO = mapper.map(child, ChildDTO.class);
+        mapper.validate();
+
+        assertEquals("id-child", childDTO.getId());
+    }
 }
